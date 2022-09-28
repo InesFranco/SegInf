@@ -1,0 +1,39 @@
+1) 
+Considere um novo modo de operação definido por:
+• Seja x = x1, . . . , xL a divisão nos blocos xi do texto em claro x.
+• RV é um vector aleatório, com a dimensão do bloco, gerado por cada texto em claro x.
+• Seja yi = E(k)(xi ⊕ RV ), para i = 1, . . . , L, onde E é a operação de cifra, k é a chave da cifra, ⊕
+denota o ou-exclusivo bit a bit.
+
+
+1.1. Defina o algoritmo de decifra para este modo de operação.
+1.2. Compare este modo de operação com o modo CBC quanto a: a) possibilidade de padrões no texto
+em claro serem evidentes no texto cifrado, b) capacidade de paralelizar a cifra.
+
+
+
+1.1r) D(K)(yi xor RV)
+
+teste :
+
+m =  1 0 1 0 1 1
+RV = 1 0 1 1 0 1 
+____________________________
+cifra = 0 0 0 1 1 0
+RV =    1 0 1 1 0 1 
+____________________________
+
+decifra = 1 0 1 0 1 1
+
+correcto! m = decifra
+
+
+
+1.2) 
+
+
+
+
+
+ 
+  
