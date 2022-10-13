@@ -20,6 +20,7 @@ para testar a aplicação.
 import javax.crypto.*;
 import java.io.File;
 import java.io.FileInputStream;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,8 +28,7 @@ import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.Arrays;
+
 
 public class HybridFileCipher {
     /*
@@ -43,14 +43,17 @@ public class HybridFileCipher {
             InvalidKeyException,
             IOException,
             IllegalBlockSizeException,
-            BadPaddingException, KeyStoreException, CertificateException {
+            BadPaddingException, KeyStoreException, CertificateException, UnrecoverableKeyException {
         File file = new File(args[1]);
         if(args[0].compareTo("enc") == 0){
             File [] files = HybridCipher(file, args[2]);
         }
+        else if(args[0].compareTo("dec") == 0){
+            File f = HybridDecipher(args[1], args[2], args[3], args[4]);
+        }
     }
 
-    private static File[] HybridCipher(File fileToCipher, String certificateName) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, KeyStoreException, IllegalBlockSizeException, BadPaddingException, IOException, CertificateException {
+    private static File[] HybridCipher(File fileToCipher, String certificateName) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, IOException, CertificateException {
         KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
         SecretKey secretKey = keyGenerator.generateKey();
 
@@ -78,4 +81,37 @@ public class HybridFileCipher {
 
         return new File[]{};
     }
+
+    private static File HybridDecipher(String fileName, String keyFileName, String pfxFileName, String password) throws KeyStoreException, IOException, CertificateException, NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, UnrecoverableKeyException, IllegalBlockSizeException, BadPaddingException {
+        KeyStore ks = KeyStore.getInstance("PKCS12");
+
+        char [] passwordArray = password.toCharArray();
+
+        ks.load(
+                new FileInputStream(pfxFileName),
+                passwordArray
+        );
+        String alias = ks.aliases().nextElement();
+        PrivateKey privateKey = (PrivateKey) ks.getKey(alias, passwordArray);
+
+        //get secretKey
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.UNWRAP_MODE, privateKey);
+
+        byte [] wrappedKey = new FileInputStream(keyFileName).readAllBytes();
+        SecretKey secretKey = (SecretKey) cipher.unwrap(wrappedKey, "RSA", Cipher.SECRET_KEY);
+
+        //get message
+        Cipher cipherMsg = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        cipher.init(Cipher.DECRYPT_MODE, secretKey);
+
+        byte [] msgBytes = new FileInputStream(fileName).readAllBytes();
+        msgBytes = cipherMsg.doFinal(msgBytes);
+
+        File file = new File("src/MessageFile.txt");
+        Files.write(Path.of(file.getPath()), msgBytes);
+
+        return file;
+    }
+
 }
