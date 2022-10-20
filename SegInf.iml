@@ -8,5 +8,20 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="KotlinJavaRuntime" level="project" />
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="file://$USER_HOME$/Downloads/commons-codec-1.15-bin/commons-codec-1.15" />
+        </CLASSES>
+        <JAVADOC>
+          <root url="file://$USER_HOME$/Downloads/commons-codec-1.15-bin/commons-codec-1.15/apidocs" />
+        </JAVADOC>
+        <SOURCES>
+          <root url="file://$USER_HOME$/Downloads/commons-codec-1.15-bin/commons-codec-1.15" />
+        </SOURCES>
+        <jarDirectory url="file://$USER_HOME$/Downloads/commons-codec-1.15-bin/commons-codec-1.15" recursive="false" />
+        <jarDirectory url="file://$USER_HOME$/Downloads/commons-codec-1.15-bin/commons-codec-1.15" recursive="false" type="SOURCES" />
+      </library>
+    </orderEntry>
   </component>
 </module>
