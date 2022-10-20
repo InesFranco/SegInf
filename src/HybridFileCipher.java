@@ -20,12 +20,9 @@ import org.apache.commons.codec.binary.Base64InputStream;
 import org.apache.commons.codec.binary.Base64OutputStream;
 
 import javax.crypto.*;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -35,6 +32,9 @@ import java.util.Scanner;
 
 
 public class HybridFileCipher {
+
+    private static final int BUFFER_SIZE = 1024;
+
     public static void main(String[] args){
 
         Scanner scanner = new Scanner(System.in);
@@ -67,25 +67,22 @@ public class HybridFileCipher {
 
     }
 
-    private static void HybridCipher(String fileToCipher, String certificateName) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, IOException, CertificateException {
+    private static void HybridCipher(String fileToEncode, String certificateName) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, IOException, CertificateException {
 
         KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
         SecretKey secretKey = keyGenerator.generateKey();
 
-        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        Cipher cipherEncoder = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipherEncoder.init(Cipher.ENCRYPT_MODE, secretKey);
 
-        File file = new File(fileToCipher);
+        FileOutputStream encodedFIS = new FileOutputStream("src/CipheredFile.txt");
 
-        byte [] cipheredFileBytes = cipher.doFinal(Files.readAllBytes(file.toPath()));
-        File cipheredFile = new File("src/CipheredFile.txt");
-        Files.write(Path.of(cipheredFile.getPath()), cipheredFileBytes);
+        writeToFile(cipherEncoder, fileToEncode, "src/CipheredFile.txt");
 
-        //Cipher Key using public key in certificate
-        File certificateFile = new File(certificateName);
+        //TODO() - VALIDATE CERTIFICATE HERE
 
         CertificateFactory factory = CertificateFactory.getInstance("X.509");
-        Certificate certificate = factory.generateCertificate(new FileInputStream(certificateFile));
+        Certificate certificate = factory.generateCertificate(new FileInputStream(certificateName));
 
         PublicKey publicKey = certificate.getPublicKey();
 
@@ -93,8 +90,16 @@ public class HybridFileCipher {
         cipherAsymmetric.init(Cipher.WRAP_MODE, publicKey);
 
         byte [] cipheredKeyBytes = cipherAsymmetric.wrap(secretKey);
-        File cipheredKey = new File("src/CipheredKeyBytes.txt");
-        Files.write(Path.of(cipheredKey.getPath()), cipheredKeyBytes);
+        FileOutputStream cipheredKeyFIS = new FileOutputStream("src/CipheredKeyBytes.txt");
+        Base64OutputStream cipheredKeyBIS = new Base64OutputStream(cipheredKeyFIS);
+
+        cipheredKeyBIS.write(cipheredKeyBytes);
+
+        encodedFIS.close();
+        cipheredKeyBIS.close();
+        cipheredKeyFIS.close();
+
+        System.out.println("File successfully encoded");
     }
 
     private static void HybridDecipher(String cipheredText, String keyFile, Key privateKey) throws Exception {
@@ -116,31 +121,13 @@ public class HybridFileCipher {
         Cipher decipherMsg = Cipher.getInstance("AES/CBC/PKCS5Padding");
         decipherMsg.init(Cipher.DECRYPT_MODE, secretKey);
 
-        //Ciphered Message
-        FileInputStream textFIS = new FileInputStream(cipheredText);
-        Base64InputStream textBIS = new Base64InputStream(textFIS);
-
         //Output for the message after deciphered
-        FileOutputStream decipheredFIS = new FileOutputStream("src/DecipheredText.txt");
-        Base64OutputStream decipheredBIS = new Base64OutputStream(decipheredFIS);
+        writeToFile(decipherMsg, cipheredText, "src/DecipheredText.txt");
 
-        //Reading and deciphering the message
-        int read;
-        byte[] buffer = new byte[1000];
-        while((read = textBIS.read(buffer)) != -1){
-            byte[] data = decipherMsg.update(buffer, 0, read);
-            decipheredBIS.write(data);
-        }
-        decipheredBIS.write(decipherMsg.doFinal());
-        decipheredBIS.flush();
-
-        textBIS.close();
-        textFIS.close();
-        decipheredBIS.close();
-        decipheredFIS.close();
         keyBIS.close();
         keyFis.close();
 
+        System.out.println("File successfully decoded");
     }
 
     private static Key getPrivateKey(String pfxFile) throws Exception{
@@ -171,5 +158,25 @@ public class HybridFileCipher {
                         -exit Exits.
                         """
         );
+    }
+
+    private static void writeToFile(Cipher cipher, String text, String output) throws IOException, IllegalBlockSizeException, BadPaddingException {
+        FileInputStream inputFis = new FileInputStream(text);
+        FileOutputStream outputFIS = new FileOutputStream(output);
+        Base64OutputStream outputBIS = new Base64OutputStream(outputFIS);
+
+        int read;
+        byte[] buffer = new byte[BUFFER_SIZE];
+
+        while((read = inputFis.read(buffer)) != -1){
+            byte[] data = cipher.update(buffer, 0, read);
+            outputBIS.write(data);
+        }
+
+        outputBIS.write(cipher.doFinal());
+        outputBIS.flush();
+        outputBIS.close();
+        outputFIS.close();
+        inputFis.close();
     }
 }
