@@ -20,13 +20,11 @@ import org.apache.commons.codec.binary.Base64InputStream;
 import org.apache.commons.codec.binary.Base64OutputStream;
 
 import javax.crypto.*;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.security.*;
 import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.Scanner;
 
@@ -34,6 +32,7 @@ import java.util.Scanner;
 public class HybridFileCipher {
 
     private static final int BUFFER_SIZE = 1024;
+    private static String CERTIFICATE_FOLDER;
 
     public static void main(String[] args){
 
@@ -52,6 +51,11 @@ public class HybridFileCipher {
                         System.out.println("Closing ...");
                         System.exit(1);
                     case "-enc":
+
+                        System.out.println("\n Encoding requires a path folder to verify the certificate! \n"
+                        + "Folder Path: ");
+                        CERTIFICATE_FOLDER = scanner.nextLine();
+
                         HybridCipher(option[1], option[2]);
                         break;
                     case "-dec":
@@ -60,14 +64,14 @@ public class HybridFileCipher {
                         pickOptionMessage();
                         break;
                 }
-            } catch (Exception ignored) {
-                System.out.println("Something went wrong!");
+            } catch (Exception e) {
+                System.out.println("Something went wrong! (" + e.fillInStackTrace() + ").");
             }
         }
 
     }
 
-    private static void HybridCipher(String fileToEncode, String certificateName) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, IOException, CertificateException {
+    private static void HybridCipher(String fileToEncode, String certificateName) throws Exception {
 
         KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
         SecretKey secretKey = keyGenerator.generateKey();
@@ -75,11 +79,11 @@ public class HybridFileCipher {
         Cipher cipherEncoder = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipherEncoder.init(Cipher.ENCRYPT_MODE, secretKey);
 
-        FileOutputStream encodedFIS = new FileOutputStream("src/CipheredFile.txt");
+        FileOutputStream encodedFIS = new FileOutputStream("src/CipheredMsg.txt");
 
-        writeToFile(cipherEncoder, fileToEncode, "src/CipheredFile.txt");
+        writeToFile(cipherEncoder, fileToEncode, "src/CipheredMsg.txt");
 
-        //TODO() - VALIDATE CERTIFICATE HERE
+        if (!verifyCertificate(certificateName)) throw new Exception("This Certificate is not Valid");
 
         CertificateFactory factory = CertificateFactory.getInstance("X.509");
         Certificate certificate = factory.generateCertificate(new FileInputStream(certificateName));
@@ -90,7 +94,7 @@ public class HybridFileCipher {
         cipherAsymmetric.init(Cipher.WRAP_MODE, publicKey);
 
         byte [] cipheredKeyBytes = cipherAsymmetric.wrap(secretKey);
-        FileOutputStream cipheredKeyFIS = new FileOutputStream("src/CipheredKeyBytes.txt");
+        FileOutputStream cipheredKeyFIS = new FileOutputStream("src/CipheredSecretKey.txt");
         Base64OutputStream cipheredKeyBIS = new Base64OutputStream(cipheredKeyFIS);
 
         cipheredKeyBIS.write(cipheredKeyBytes);
@@ -104,7 +108,6 @@ public class HybridFileCipher {
 
     private static void HybridDecipher(String cipheredText, String keyFile, Key privateKey) throws Exception {
 
-
         //Cipher Setup for unwrap using the given Private Key
         Cipher decipherKey = Cipher.getInstance("RSA");
         decipherKey.init(Cipher.UNWRAP_MODE, privateKey);
@@ -115,19 +118,20 @@ public class HybridFileCipher {
 
         //Unwrapping the secret Key
         byte [] wrappedKey = keyBIS.readAllBytes();
-        SecretKey secretKey = (SecretKey) decipherKey.unwrap(wrappedKey, "AES", Cipher.SECRET_KEY);
+        Key secretKey = decipherKey.unwrap(wrappedKey, "AES", Cipher.SECRET_KEY);
 
         //New decipher to be used to obtain the ciphered message
-        Cipher decipherMsg = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        Cipher decipherMsg = Cipher.getInstance("AES/ECB/PKCS5Padding");
         decipherMsg.init(Cipher.DECRYPT_MODE, secretKey);
 
-        //Output for the message after deciphered
-        writeToFile(decipherMsg, cipheredText, "src/DecipheredText.txt");
+        //Outputting the message to a file
+        writeToFile(decipherMsg, cipheredText, "src/DecipheredMsg.txt");
 
         keyBIS.close();
         keyFis.close();
 
         System.out.println("File successfully decoded");
+        pickOptionMessage();
     }
 
     private static Key getPrivateKey(String pfxFile) throws Exception{
@@ -160,7 +164,7 @@ public class HybridFileCipher {
         );
     }
 
-    private static void writeToFile(Cipher cipher, String text, String output) throws IOException, IllegalBlockSizeException, BadPaddingException {
+    private static void writeToFile(Cipher cipher, String text, String output) throws Exception {
         FileInputStream inputFis = new FileInputStream(text);
         FileOutputStream outputFIS = new FileOutputStream(output);
         Base64OutputStream outputBIS = new Base64OutputStream(outputFIS);
@@ -173,10 +177,49 @@ public class HybridFileCipher {
             outputBIS.write(data);
         }
 
-        outputBIS.write(cipher.doFinal());
+        byte [] end = cipher.doFinal();
+        outputBIS.write(end);
         outputBIS.flush();
         outputBIS.close();
         outputFIS.close();
         inputFis.close();
+    }
+
+    private static boolean verifyCertificate(String certificate) throws Exception {
+
+        CertificateFactory factory = CertificateFactory.getInstance("X.509");
+        FileInputStream fis = new FileInputStream(certificate);
+        X509Certificate cert = (X509Certificate) factory.generateCertificate(fis);
+
+        // Creating the Issuer Certificate name so that we can look up for it in the folder passed by the User
+        var issuer_name = cert.getIssuerDN().getName().split(",")[0].split("=")[1] + ".cer";
+
+        // Getting the Directory with all the Certificate Files inside
+        File dir = new File(CERTIFICATE_FOLDER);
+        File[] files = dir.listFiles();
+
+        // Iterating over all the Files till we found the correct certificate file
+        for (int i = 0; i < (files != null ? files.length : 0); i++) {
+
+            // In case we find the IC
+            String s = files[i].getName();
+            if (s.equals(issuer_name)) {
+
+                // If the Path for the IC is the same as the Certificate Path itself, then we have reached a Trust Anchor
+                if (files[i].getAbsolutePath().equals(certificate)) return true;
+
+                // Else, we get the IC, and using its Public Key we validate our own Certificate
+                FileInputStream ver = new FileInputStream(files[i].getAbsolutePath());
+                X509Certificate cert_ver = (X509Certificate) factory.generateCertificate(ver);
+                cert.verify(cert_ver.getPublicKey());
+
+                // After that, we proceed to validate the IC using recursion
+                return verifyCertificate(files[i].getAbsolutePath());
+            }
+        }
+
+        // If we don't return inside the for we can assure there's nothing inside the folder that validates the certificate given
+        return false;
+
     }
 }
