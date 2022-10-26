@@ -28,6 +28,16 @@ import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.Scanner;
 
+/**
+ * Um dos Testes Realizados
+ *
+ *  -enc lusiadas.txt Alice_1.cer
+ *  folder com certificados para validação: CertificatesFolder
+ *  output -> CipheredMsg.txt e CipheredSecretKey.txt
+ *
+ *  -dec CipheredMsg.txt CipheredSecretKey.txt Alice_1.pfx
+ *  output -> DecipheredMsg.txt
+**/
 
 public class HybridFileCipher {
 
@@ -50,8 +60,8 @@ public class HybridFileCipher {
                     case "-exit":
                         System.out.println("Closing ...");
                         System.exit(1);
-                    case "-enc":
 
+                    case "-enc":
                         System.out.println("\n Encoding requires a path folder to verify the certificate! \n"
                         + "Folder Path: ");
                         CERTIFICATE_FOLDER = scanner.nextLine();
@@ -104,6 +114,7 @@ public class HybridFileCipher {
         cipheredKeyFIS.close();
 
         System.out.println("File successfully encoded");
+        pickOptionMessage();
     }
 
     private static void HybridDecipher(String cipheredText, String keyFile, Key privateKey) throws Exception {
@@ -167,20 +178,20 @@ public class HybridFileCipher {
     private static void writeToFile(Cipher cipher, String text, String output) throws Exception {
         FileInputStream inputFis = new FileInputStream(text);
         FileOutputStream outputFIS = new FileOutputStream(output);
-        Base64OutputStream outputBIS = new Base64OutputStream(outputFIS);
+       //Base64OutputStream outputBIS = new Base64OutputStream(outputFIS); USING Base64 doesnt work
 
         int read;
         byte[] buffer = new byte[BUFFER_SIZE];
 
         while((read = inputFis.read(buffer)) != -1){
             byte[] data = cipher.update(buffer, 0, read);
-            outputBIS.write(data);
+            outputFIS.write(data);
         }
 
         byte [] end = cipher.doFinal();
-        outputBIS.write(end);
-        outputBIS.flush();
-        outputBIS.close();
+        outputFIS.write(end);
+        outputFIS.flush();
+        //outputBIS.close();
         outputFIS.close();
         inputFis.close();
     }
