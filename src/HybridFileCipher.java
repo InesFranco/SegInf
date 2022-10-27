@@ -83,30 +83,38 @@ public class HybridFileCipher {
 
     private static void HybridCipher(String fileToEncode, String certificateName) throws Exception {
 
+        //generating secret key to be used to encrypt the message
         KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
         SecretKey secretKey = keyGenerator.generateKey();
 
+        //encrypt setup
         Cipher cipherEncoder = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipherEncoder.init(Cipher.ENCRYPT_MODE, secretKey);
 
         FileOutputStream encodedFIS = new FileOutputStream("src/CipheredMsg.txt");
 
+        //encrypting and writing the message on a file
         writeToFile(cipherEncoder, fileToEncode, "src/CipheredMsg.txt");
 
+        //validate certificate -> throw if it isn't valid
         if (!verifyCertificate(certificateName)) throw new Exception("This Certificate is not Valid");
 
         CertificateFactory factory = CertificateFactory.getInstance("X.509");
         Certificate certificate = factory.generateCertificate(new FileInputStream(certificateName));
 
+        //public key to encrypt the secret key with
         PublicKey publicKey = certificate.getPublicKey();
 
+        //wrap setup
         Cipher cipherAsymmetric = Cipher.getInstance("RSA");
         cipherAsymmetric.init(Cipher.WRAP_MODE, publicKey);
 
+        //wrapping the secret key
         byte [] cipheredKeyBytes = cipherAsymmetric.wrap(secretKey);
         FileOutputStream cipheredKeyFIS = new FileOutputStream("src/CipheredSecretKey.txt");
         Base64OutputStream cipheredKeyBIS = new Base64OutputStream(cipheredKeyFIS);
 
+        //writing the secret key encrypted to a file
         cipheredKeyBIS.write(cipheredKeyBytes);
 
         encodedFIS.close();
@@ -135,7 +143,7 @@ public class HybridFileCipher {
         Cipher decipherMsg = Cipher.getInstance("AES/ECB/PKCS5Padding");
         decipherMsg.init(Cipher.DECRYPT_MODE, secretKey);
 
-        //Outputting the message to a file
+        //decrypting the message and writing it to a file
         writeToFile(decipherMsg, cipheredText, "src/DecipheredMsg.txt");
 
         keyBIS.close();
@@ -178,7 +186,7 @@ public class HybridFileCipher {
     private static void writeToFile(Cipher cipher, String text, String output) throws Exception {
         FileInputStream inputFis = new FileInputStream(text);
         FileOutputStream outputFIS = new FileOutputStream(output);
-       //Base64OutputStream outputBIS = new Base64OutputStream(outputFIS); USING Base64 doesnt work
+       //Base64OutputStream outputBIS = new Base64OutputStream(outputFIS); USING Base64 here doesn't work
 
         int read;
         byte[] buffer = new byte[BUFFER_SIZE];
