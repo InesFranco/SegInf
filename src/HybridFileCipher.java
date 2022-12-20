@@ -27,6 +27,7 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Um dos Testes Realizados
@@ -57,22 +58,18 @@ public class HybridFileCipher {
 
                 option = scanner.nextLine().split(" ");
                 switch (option[0]) {
-                    case "-exit":
+                    case "-exit" -> {
                         System.out.println("Closing ...");
                         System.exit(1);
-
-                    case "-enc":
+                    }
+                    case "-enc" -> {
                         System.out.println("\n Encoding requires a path folder to verify the certificate! \n"
-                        + "Folder Path: ");
+                                + "Folder Path: ");
                         CERTIFICATE_FOLDER = scanner.nextLine();
-
                         HybridCipher(option[1], option[2]);
-                        break;
-                    case "-dec":
-                        HybridDecipher(option[1], option[2], getPrivateKey(option[3]));
-                    default:
-                        pickOptionMessage();
-                        break;
+                    }
+                    case "-dec" -> HybridDecipher(option[1], option[2], getPrivateKey(option[3]));
+                    default -> pickOptionMessage();
                 }
             } catch (Exception e) {
                 System.out.println("Something went wrong! (" + e.fillInStackTrace() + ").");
@@ -88,7 +85,7 @@ public class HybridFileCipher {
         SecretKey secretKey = keyGenerator.generateKey();
 
         //encrypt setup
-        Cipher cipherEncoder = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        Cipher cipherEncoder = Cipher.getInstance("AES/ECB/PKCS5Padding"); //--
         cipherEncoder.init(Cipher.ENCRYPT_MODE, secretKey);
 
         FileOutputStream encodedFIS = new FileOutputStream("src/CipheredMsg.txt");
@@ -121,7 +118,8 @@ public class HybridFileCipher {
         cipheredKeyBIS.close();
         cipheredKeyFIS.close();
 
-        System.out.println("File successfully encoded");
+        System.out.println("File successfully encoded \n");
+        TimeUnit.SECONDS.sleep(1);
         pickOptionMessage();
     }
 
@@ -149,7 +147,8 @@ public class HybridFileCipher {
         keyBIS.close();
         keyFis.close();
 
-        System.out.println("File successfully decoded");
+        System.out.println("File successfully decoded \n");
+        TimeUnit.SECONDS.sleep(1);
         pickOptionMessage();
     }
 
@@ -205,7 +204,7 @@ public class HybridFileCipher {
     }
 
     private static boolean verifyCertificate(String certificate) throws Exception {
-
+        //-- certpathbuilder refazer
         CertificateFactory factory = CertificateFactory.getInstance("X.509");
         FileInputStream fis = new FileInputStream(certificate);
         X509Certificate cert = (X509Certificate) factory.generateCertificate(fis);

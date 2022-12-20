@@ -1,0 +1,9 @@
+p, admin, secret, GET
+p, premium, task, POST
+p, free, home, GET
+p, free, task, GET
+g, admin, premium
+g, premium, free
+g, afonso.cabacoisel@gmail.com, admin
+g, afonso.teste2@gmail.com, free
+g, afonso.teste2@gmail.com, premium
