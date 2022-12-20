@@ -3,7 +3,7 @@
 /tp2/package-lock.json
 /tp2/package.json
 node_modules
-out
 .idea
 package-lock.json
 package.json
+/out/
