@@ -1,3 +1,5 @@
+//VERSION WITHOUT AXIOS
+
 const PORT = 4001
 
 const CLIENT_ID = "924357387713-oqrbsgbes3064k8os19k40b7tceu218g.apps.googleusercontent.com"
@@ -9,10 +11,12 @@ const CALLBACK = 'redirect'
 const express = require('express');
 const fs = require('fs');
 const casbin = require('casbin');
-const axios = require('axios').default;
 const jwt = require('jsonwebtoken');
 const passport = require('passport');
 const app = express();
+
+const request = require('request')
+
 
 /** USER INFO **/
  
@@ -95,24 +99,30 @@ app.get('/login', (req, res) => {
 })
 
 app.get('/' + CALLBACK, (req, res) => {
-    if(req.originalUrl.split('=')[1].split('&')[0] != req.cookies.state){ //falha aqui
+    if(req.originalUrl.split('=')[1].split('&')[0] != req.cookies.state){ //---
         res.redirect('/error')
         return
     }
 
-    axios.post(
-        'https://www.googleapis.com/oauth2/v3/token',
-        { //form
-            code: req.query.code,
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET,
-            redirect_uri: 'http://localhost:4001' + CALLBACK,
-            grant_type: 'authorization_code',
-        }
-        )
-        .then(function(response) {
-            const jwt_payload = jwt.decode(response.data.id_token);
-            createUser(jwt_payload.email, jwt_payload.password)
+    request
+        .post(
+            {
+                url: 'https://www.googleapis.com/oauth2/v3/token',
+                form: {    
+                    code: req.query.code,
+                    client_id: CLIENT_ID,
+                    client_secret: CLIENT_SECRET,
+                    redirect_uri: 'http://localhost:4001' + CALLBACK,
+                    grant_type: 'authorization_code',
+                }
+            },
+            function(err, response, body) {
+                if(err) response.redirect('/error')
+
+                const json = JSON.parse(body);
+                const jwt_payload = jwt.decode(json.id_token);
+
+                createUser(jwt_payload.email, jwt_payload.access_token)
                 .then(user => {
                     req.logIn(user, err =>{
                         if(err) res.redirect('/error')
@@ -120,12 +130,8 @@ app.get('/' + CALLBACK, (req, res) => {
                         res.end()
                     })
                 })
-
-        })
-        .catch(function(err){
-            console.log(err)
-            res.redirect('/error')
-        })
+            }
+        );
 })
 
 app.get('/tasks', (req, res) => {
@@ -136,26 +142,25 @@ app.get('/tasks', (req, res) => {
     else 
     {
         try{
-            axios.get(
-                'https://tasks.googleapis.com/tasks/v1/users/@me/lists',
-                {
-                    headers: {
-                        Authorization: 'Bearer ' + req.user.auth,
-                        'Content-Type': 'application/json'
-                    }
+            request({
+                host: 'https://tasks.googleapis.com',
+                path: '/tasks/v1/users/@me/lists',
+                uri: 'https://tasks.googleapis.com/tasks/v1/users/@me/lists',
+                method: 'GET',
+                headers: {
+                    Authorization: 'Bearer ' + req.user.auth,
+                    'Content-Type': 'application/json'
                 }
-            )
-            .then(function(response){
-                res.render('tasks', {'list' : response.data.items})
-            })
-            .catch(function(err){
-                console.log(err)
-                res.redirect('/error')
-            })
-        } catch(err){
-            console.log(err)
-            res.redirect('/error')
-        }
+            }, 
+                function(err, response, body){
+                 
+                    if(err) response.redirect('/error')   
+                    const json = JSON.parse(body);
+
+                    res.render('tasks', {'list': json.items})
+                })
+
+        } catch(err){res.redirect('/error')}
     } 
 })
 
@@ -170,22 +175,27 @@ app.get('/tasks/:id', (req, res) => {
         if(!res2) res.redirect('/notauthorized')
         else {
             try{
-                axios.get(
-                    'https://tasks.googleapis.com/tasks/v1/lists' + req.params.id + '/tasks',
-                    {
-                        headers: {
-                            Authorization: 'Bearer ' + req.user.auth,
-                            'Content-Type': 'application/json'
-                        }
+                request({
+                    host: 'https://tasks.googleapis.com',
+                    path: '/tasks/v1/lists/' + req.params.id + '/tasks',
+                    uri: 'https://tasks.googleapis.com/tasks/v1/lists' + req.params.id + '/tasks',
+                    method: 'GET',
+                    headers: {
+                        Authorization: 'Bearer ' + req.user.auth,
+                        'Content-Type': 'application/json'
+                    }
+                },
+                    function(err, response, body){
+                        
+                        if(err) res.redirect('/error')
+                        
+                        const json = JSON.parse(body);
+
+                        res.render('task', {'list': json.items})
                     }
                 )
-                .then(function(response){
-                    res.render('task', {'list' : response.data.items})
-                })
-                .catch(function(err){
-                    console.log(err)
-                    res.redirect('/error')
-                })
+                
+
             }catch(err){
                 console.log(err)
                 res.redirect('/error')
@@ -205,26 +215,26 @@ app.post('/tasks/:id', async (req, res) => {
         if (!res2) res.redirect('/notauthorized')
         else {
             try {
-                axios.post(
-                    `https://tasks.googleapis.com/tasks/v1/lists/${req.params.id}/tasks`,
-                    {title: req.body.title},
-                    {
-                        headers: {
-                        Authorization: `Bearer ${req.user.auth}`,
+                request({
+                    host: 'https://tasks.googleapis.com',
+                    path: `/tasks/v1/lists/${req.params.id}/tasks`,
+                    uri: `https://tasks.googleapis.com/tasks/v1/lists/${req.params.id}/tasks`,
+                    method: 'POST',
+                    headers: {
+                        Authorization: 'Bearer ' + req.user.auth,
                         'Content-Type': 'application/json'
-                        }
-                    },
-                )
-                    .then(function (response) {
+                    }
+                },
+                    function(err, response, body){
+                        
+                        if(err) res.redirect('/error')
+                        
+                        const json = JSON.parse(body);
+
                         res.redirect(`/tasks/${req.params.id}`)
                     })
-                    .catch(function (err) {
-                        console.log(err)
-                        res.redirect('/error')
-                    })
-
-            } catch (err) {
-                res.status(500).json({message: err});
+            }catch(err){
+                console.log(err)
                 res.redirect('/error')
             }
         }
